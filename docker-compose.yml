@@ -12,36 +12,54 @@ services:
       - POSTGRES_DB=personal_finance
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d personal_finance"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    networks:
+      - pfm-external-network
 
   backend:
-    build: ./backend
+    image: personal-finance-manager-backend:latest
     container_name: pfm_backend
     ports:
       - "8080:8080"
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/personal_finance
       - SPRING_DATASOURCE_USERNAME=user
       - SPRING_DATASOURCE_PASSWORD=password
+    networks:
+      - pfm-external-network
 
   currency-converter:
-    build: ./currency-converter-service
+    image: personal-finance-manager-currency-converter:latest
     container_name: pfm_currency_converter
     ports:
       - "8083:8080"
+    networks:
+      - pfm-external-network
 
   statistics-service:
-    build: ./statistics-service
+    image: personal-finance-manager-statistics-service:latest
     container_name: pfm_statistics_service
     ports:
       - "8084:8080"
+    networks:
+      - pfm-external-network
+
+  nginx:
+    build: ./nginx
+    image: personal-finance-manager-nginx:latest
+    ports:
+      - "80:80"
+    networks:
+      - pfm-external-network
+    depends_on:
+      - backend
+      - currency-converter
+      - statistics-service
 
 volumes:
   postgres_data:
+
+networks:
+  pfm-external-network:
+    external: true
